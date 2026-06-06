@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OEE Machine Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #f5f5f3;
+    --surface:   #ffffff;
+    --surface2:  #f0f0ee;
+    --border:    #e0e0dc;
+    --border-strong: #c8c8c4;
+    --teal:      #00B4B0;
+    --teal-dark: #008f8c;
+    --teal-light:#e6f7f7;
+    --black:     #0f0f0f;
+    --text:      #2a2a2a;
+    --text-dim:  #7a7a78;
+    --text-mid:  #4a4a48;
+    --font-ui:   'Inter Tight', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'Inter', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--black); color: white;
+    padding: 0 32px; height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 16px; }
+  .topbar-title { font-family: var(--font-body); font-size: 15px; font-weight: 700; letter-spacing: 0.5px; color: white; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .live-pill { display: flex; align-items: center; gap: 7px; background: rgba(0,180,176,0.15); border: 1px solid rgba(0,180,176,0.3); padding: 4px 12px; border-radius: 20px; font-family: var(--font-body); font-size: 11px; color: var(--teal); }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); animation: blink 1.8s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .clock { font-family: var(--font-body); font-size: 13px; color: rgba(255,255,255,0.5); }
+  .accent-stripe { height: 4px; background: var(--teal); }
+
+  .wrapper { max-width: 1400px; margin: 0 auto; padding: 32px 32px 60px; }
+
+  .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+  .page-header h2 { font-family: var(--font-ui); font-size: 28px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: var(--black); }
+  .page-header h2 span { color: var(--teal); }
+  .page-header .subtitle { font-size: 13px; color: var(--text-dim); font-family: var(--font-mono); margin-top: 4px; }
+
+  /* CONFIG */
+  .config-panel {
+    background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--teal);
+    padding: 20px 24px; margin-bottom: 24px;
+    display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-family: var(--font-body); font-size: 11px; color: var(--text-dim); font-weight: 500; }
+  .field input, .field select {
+    background: var(--bg); border: 1px solid var(--border-strong); color: var(--black);
+    font-family: var(--font-body); font-size: 13px; padding: 8px 12px; outline: none; min-width: 220px;
+    border-radius: 2px; transition: border-color .2s, box-shadow .2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,180,176,.12); }
+  .btn {
+    background: var(--teal); border: none; color: white;
+    font-family: var(--font-ui); font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    padding: 9px 28px; cursor: pointer; transition: background .2s; border-radius: 2px;
+  }
+  .btn:hover { background: var(--teal-dark); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* FILTERS */
+  .time-filters { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+  .filter-label { font-family: var(--font-body); font-size: 11px; color: var(--text-dim); font-weight: 500; margin-right: 4px; }
+  .filter-btn {
+    background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-mid);
+    font-family: var(--font-body); font-size: 12px; padding: 6px 14px; cursor: pointer;
+    transition: all .15s; border-radius: 2px; text-transform: uppercase;
+  }
+  .filter-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-light); }
+  .filter-btn.active { background: var(--teal); border-color: var(--teal); color: white; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::before { content:''; display:inline-block; width:3px; height:14px; background:var(--teal); border-radius:1px; }
+  .section-title::after  { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* MACHINE CARDS */
+  .machines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px,1fr)); gap: 14px; margin-bottom: 32px; }
+  .machine-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--sc, var(--border));
+    padding: 18px 20px; animation: slideUp .3s ease forwards; opacity: 0;
+    transition: box-shadow .2s, background .3s;
+  }
+  .machine-card.executing {
+    background: #edf7f2;
+    border-color: var(--running);
+  }
+  .machine-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  @keyframes slideUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .machine-name { font-family: var(--font-ui); font-size: 18px; font-weight: 700; letter-spacing: 1px; color: var(--black); text-transform: uppercase; }
+  .machine-id   { font-family: var(--font-body); font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px;
+    font-family: var(--font-body); font-size: 11px; font-weight: 500; white-space: nowrap;
+    background: var(--sb); color: var(--sc); border: 1px solid var(--sc);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .executing .status-dot { animation: blink 1.8s infinite; }
+
+  .card-meta { font-family: var(--font-body); font-size: 11px; color: var(--text-dim); border-top: 1px solid var(--border); padding-top: 10px; }
+  .card-meta .ts { color: var(--teal-dark); font-size: 12px; display: block; margin-top: 2px; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 12px; margin-bottom: 32px; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; }
+  .stat-box .val { font-family: var(--font-ui); font-size: 40px; font-weight: 900; line-height: 1; color: var(--black); margin-bottom: 6px; }
+  .stat-box .val.teal   { color: var(--teal); }
+  .stat-box .val.green  { color: #00A86B; }
+  .stat-box .val.warn   { color: #E07B00; }
+  .stat-box .val.danger { color: #D93025; }
+  .stat-box .lbl { font-family: var(--font-body); font-size: 11px; color: var(--text-dim); font-weight: 500; }
+
+  /* TIMELINE */
+  .timeline-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 20px 24px; margin-bottom: 32px; overflow-x: auto;
+  }
+  .timeline-machine { margin-bottom: 20px; }
+  .timeline-machine:last-child { margin-bottom: 0; }
+  .tl-label { font-family: var(--font-body); font-size: 13px; font-weight: 700; color: var(--black); margin-bottom: 8px; }
+  .tl-track { position: relative; height: 32px; background: var(--surface2); border: 1px solid var(--border); border-radius: 2px; min-width: 600px; }
+  .tl-segment {
+    position: absolute; top: 0; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-body); font-size: 9px; font-weight: 500;
+    color: white; overflow: hidden; cursor: default;
+    transition: filter .15s;
+    border-right: 1px solid rgba(255,255,255,0.3);
+  }
+  .tl-segment:hover { filter: brightness(1.15); z-index: 2; }
+  .tl-segment span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; pointer-events: none; }
+  .tl-axis { display: flex; justify-content: space-between; font-family: var(--font-body); font-size: 9px; color: var(--text-dim); margin-top: 4px; min-width: 600px; }
+
+  /* TOOLTIP */
+  .tl-tooltip {
+    position: fixed; background: var(--black); color: white;
+    font-family: var(--font-body); font-size: 11px; padding: 8px 12px;
+    border-left: 3px solid var(--teal); border-radius: 2px; pointer-events: none;
+    z-index: 9999; opacity: 0; transition: opacity .15s;
+    line-height: 1.6; white-space: nowrap;
+  }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); overflow: auto; max-height: 500px; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-body); font-size: 13px; }
+  thead { position: sticky; top: 0; z-index: 2; }
+  th { background: var(--surface2); color: var(--text-dim); font-family: var(--font-body); font-size: 11px; font-weight: 600; padding: 11px 16px; text-align: left; border-bottom: 2px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--teal-light); }
+
+  .status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font-family: var(--font-body); font-size: 11px; border-radius: 20px; font-weight: 500; border: 1px solid; }
+
+  .machine-filter-row { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+  .machine-filter-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .machine-filter-btn {
+    background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-mid);
+    font-family: var(--font-body); font-size: 12px; padding: 6px 14px; cursor: pointer;
+    transition: all .15s; border-radius: 2px; display: flex; align-items: center; gap: 6px;
+  }
+  .machine-filter-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-light); }
+  .machine-filter-btn.active { background: var(--teal); border-color: var(--teal); color: white; }
+  .machine-filter-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  .state-msg { text-align: center; padding: 48px 20px; font-family: var(--font-body); font-size: 12px; color: var(--text-dim); }
+  .state-msg.error { color: #D93025; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--black); color: white;
+    font-family: var(--font-body); font-size: 12px; padding: 12px 20px; z-index: 9999;
+    border-left: 3px solid var(--teal); transform: translateY(80px); opacity: 0; transition: all .3s; border-radius: 2px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-left-color: #D93025; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-title">OEE Monitor</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-pill"><div class="live-dot"></div><span id="liveStatus">READY</span></div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</div>
+<div class="accent-stripe"></div>
+
+<div class="wrapper">
+  <div class="page-header">
+    <div>
+      <h2>Machine <span>Event Dashboard</span></h2>
+      <div class="subtitle">S7-1500 PLC · PackML States · Notion DB · Real-time</div>
+    </div>
+  </div>
+
+  <div class="config-panel">
+    <div class="field">
+      <label>Notion API Token</label>
+      <input type="password" id="apiToken" placeholder="ntn_xxxxxxxxxxxx" />
+    </div>
+    <div class="field">
+      <label>Database ID</label>
+      <input type="text" id="dbId" value="3777139f3fba80da92e0f87500e9273e" />
+    </div>
+    <div class="field">
+      <label>Auto-refresh</label>
+      <select id="refreshInterval">
+        <option value="0">Off</option>
+        <option value="30" selected>Every 30s</option>
+        <option value="60">Every 60s</option>
+        <option value="300">Every 5min</option>
+      </select>
+    </div>
+    <button class="btn" id="loadBtn" onclick="loadData()">Load Data</button>
+  </div>
+
+  <div class="time-filters">
+    <span class="filter-label">Time range</span>
+    <button class="filter-btn" onclick="setFilter(1,this)">Last 1h</button>
+    <button class="filter-btn active" onclick="setFilter(8,this)">Last 8h</button>
+    <button class="filter-btn" onclick="setFilter(24,this)">Last 24h</button>
+    <button class="filter-btn" onclick="setFilter('yesterday',this)">Yesterday</button>
+    <button class="filter-btn" onclick="setFilter(168,this)">Last 7 days</button>
+    <button class="filter-btn" onclick="setFilter(0,this)">All</button>
+  </div>
+
+  <div class="machine-filter-row" id="machineFilterRow" style="display:none">
+    <span class="filter-label">Machines</span>
+    <div id="machineFilterBtns" class="machine-filter-btns"></div>
+  </div>
+
+  <div class="section-title">Current Machine Status</div>
+  <div id="machineCards" class="machines-grid">
+    <div class="state-msg">Enter your API token and click Load Data</div>
+  </div>
+
+  <div class="section-title">Period Statistics</div>
+  <div class="stats-row">
+    <div class="stat-box"><div class="val teal"   id="statTotal">—</div><div class="lbl">Total Events</div></div>
+    <div class="stat-box"><div class="val green"  id="statExecute">—</div><div class="lbl">Execute</div></div>
+    <div class="stat-box"><div class="val warn"   id="statHeld">—</div><div class="lbl">Held</div></div>
+    <div class="stat-box"><div class="val warn"   id="statSuspended">—</div><div class="lbl">Suspended</div></div>
+    <div class="stat-box"><div class="val danger" id="statAbort">—</div><div class="lbl">Aborted</div></div>
+    <div class="stat-box"><div class="val"        id="statMachines">—</div><div class="lbl">Machines</div></div>
+  </div>
+
+  <div class="section-title">State Timeline</div>
+  <div id="timelineWrap" class="timeline-wrap">
+    <div class="state-msg">No data loaded</div>
+  </div>
+
+  <div class="section-title">Event History</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Timestamp</th>
+          <th>Machine Name</th>
+          <th>Machine ID</th>
+          <th>PackML State</th>
+          <th>Code</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="6" class="state-msg">No data loaded</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="tl-tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PackML State definitions ──────────────────────────────────────────────
+const PACKML = {
+   0: { name: 'Undefined',    color: '#b0b0ae', bg: '#f2f2f0', cat: 'other'   },
+   1: { name: 'Clearing',     color: '#5c9bd6', bg: '#e8f2fb', cat: 'trans'   },
+   2: { name: 'Stopped',      color: '#7a7a78', bg: '#f2f2f0', cat: 'stop'    },
+   3: { name: 'Starting',     color: '#42a87a', bg: '#e6f5ee', cat: 'trans'   },
+   4: { name: 'Idle',         color: '#9c8fc0', bg: '#f2eff9', cat: 'wait'    },
+   5: { name: 'Suspended',    color: '#E07B00', bg: '#fff4e6', cat: 'hold'    },
+   6: { name: 'Execute',      color: '#00A86B', bg: '#e6f5ee', cat: 'run'     },
+   7: { name: 'Stopping',     color: '#7a7a78', bg: '#f2f2f0', cat: 'trans'   },
+   8: { name: 'Aborting',     color: '#D93025', bg: '#fdecea', cat: 'fault'   },
+   9: { name: 'Aborted',      color: '#D93025', bg: '#fdecea', cat: 'fault'   },
+  10: { name: 'Holding',      color: '#E07B00', bg: '#fff4e6', cat: 'hold'    },
+  11: { name: 'Held',         color: '#E07B00', bg: '#fff4e6', cat: 'hold'    },
+  12: { name: 'Unholding',    color: '#42a87a', bg: '#e6f5ee', cat: 'trans'   },
+  13: { name: 'Suspending',   color: '#E07B00', bg: '#fff4e6', cat: 'hold'    },
+  14: { name: 'Unsuspending', color: '#42a87a', bg: '#e6f5ee', cat: 'trans'   },
+  15: { name: 'Resetting',    color: '#5c9bd6', bg: '#e8f2fb', cat: 'trans'   },
+  16: { name: 'Completing',   color: '#42a87a', bg: '#e6f5ee', cat: 'trans'   },
+  17: { name: 'Complete',     color: '#00B4B0', bg: '#e6f7f7', cat: 'run'     },
+};
+
+function packmlInfo(code) {
+  return PACKML[code] || { name: 'State ' + code, color: '#b0b0ae', bg: '#f2f2f0', cat: 'other' };
+}
+
+// ── App state ─────────────────────────────────────────────────────────────
+let allData = [], currentFilterHours = 8, refreshTimer = null, selectedMachines = new Set();
+
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB', { hour12: false });
+}, 1000);
+
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function setFilter(hours, btn) {
+  currentFilterHours = hours;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderData();
+}
+
+function getFilteredData() {
+  let data = allData;
+  // Time filter
+  if (currentFilterHours) {
+    const now = new Date();
+    if (currentFilterHours === 'yesterday') {
+      const y = new Date(now); y.setDate(y.getDate()-1); y.setHours(0,0,0,0);
+      const ye = new Date(y); ye.setHours(23,59,59,999);
+      data = data.filter(d => { const ts=new Date(d.timestamp); return ts>=y && ts<=ye; });
+    } else {
+      const cutoff = new Date(now.getTime() - currentFilterHours*3600000);
+      data = data.filter(d => new Date(d.timestamp) >= cutoff);
+    }
+  }
+  // Machine filter
+  if (selectedMachines.size > 0) {
+    data = data.filter(d => selectedMachines.has(d.machineID));
+  }
+  return data;
+}
+
+function getLatestPerMachine(data) {
+  const map = {};
+  data.forEach(d => {
+    if (!map[d.machineID]) {
+      map[d.machineID] = d;
+    } else {
+      const existing = map[d.machineID];
+      const tsNew = new Date(d.timestamp).getTime();
+      const tsOld = new Date(existing.timestamp).getTime();
+      // Newer timestamp wins; on tie, lower notionOrder = newer (Notion returns newest first)
+      if (tsNew > tsOld || (tsNew === tsOld && d.notionOrder < existing.notionOrder)) {
+        map[d.machineID] = d;
+      }
+    }
+  });
+  return Object.values(map);
+}
+
+function renderMachineFilter() {
+  const machines = {};
+  allData.forEach(d => {
+    if (!machines[d.machineID]) machines[d.machineID] = d.machineName || d.machineID;
+  });
+  const ids = Object.keys(machines);
+  const row = document.getElementById('machineFilterRow');
+  const btns = document.getElementById('machineFilterBtns');
+
+  if (ids.length <= 1) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+
+  // "All" button + one per machine
+  const allActive = selectedMachines.size === 0;
+  btns.innerHTML = `
+    <button class="machine-filter-btn ${allActive?'active':''}" onclick="setMachineFilter(null,this)">All machines</button>
+    ${ids.map(id => {
+      const info = packmlInfo(allData.find(d=>d.machineID===id)?.status||0);
+      const active = selectedMachines.has(id);
+      return `<button class="machine-filter-btn ${active?'active':''}"
+        onclick="setMachineFilter('${esc(id)}',this)"
+        style="${active?'':''}">
+        <span class="dot" style="background:${active?'white':info.color}"></span>
+        ${esc(machines[id])}
+      </button>`;
+    }).join('')}
+  `;
+}
+
+function setMachineFilter(machineID, btn) {
+  if (!machineID) {
+    selectedMachines.clear();
+  } else {
+    if (selectedMachines.has(machineID)) {
+      selectedMachines.delete(machineID);
+    } else {
+      selectedMachines.add(machineID);
+    }
+  }
+  renderMachineFilter();
+  renderData();
+}
+
+function renderData() {
+  const filtered = getFilteredData();
+  renderCards();
+  renderStats(filtered);
+  renderTimeline(filtered);
+  renderHistory(filtered);
+}
+
+// ── CARDS ─────────────────────────────────────────────────────────────────
+function renderCards() {
+  const latest = getLatestPerMachine(allData);
+  const el = document.getElementById('machineCards');
+  if (!latest.length) { el.innerHTML = '<div class="state-msg">No machines found</div>'; return; }
+
+  el.innerHTML = latest.map((m, i) => {
+    const info = packmlInfo(m.status);
+    const isExecuting = m.status === 6;
+    return `
+    <div class="machine-card ${isExecuting?'executing':''}"
+         style="--sc:${info.color};--sb:${info.bg};animation-delay:${i*0.07}s">
+      <div class="card-header">
+        <div>
+          <div class="machine-name">${esc(m.machineName||'—')}</div>
+          <div class="machine-id">ID: ${esc(m.machineID||'—')}</div>
+        </div>
+        <div class="status-badge" style="--sc:${info.color};--sb:${info.bg}">
+          <div class="status-dot"></div>
+          ${info.name}
+        </div>
+      </div>
+      <div class="card-meta">Last update<span class="ts">${fmtTs(m.timestamp)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────
+function renderStats(data) {
+  document.getElementById('statTotal').textContent     = data.length;
+  document.getElementById('statExecute').textContent   = data.filter(d => d.status === 6 || d.status === 17).length;
+  document.getElementById('statHeld').textContent      = data.filter(d => d.status === 11).length;
+  document.getElementById('statSuspended').textContent = data.filter(d => d.status === 5).length;
+  document.getElementById('statAbort').textContent     = data.filter(d => d.status === 8 || d.status === 9).length;
+  document.getElementById('statMachines').textContent  = new Set(data.map(d => d.machineID)).size;
+}
+
+// ── TIMELINE ──────────────────────────────────────────────────────────────
+function renderTimeline(data) {
+  const wrap = document.getElementById('timelineWrap');
+  if (!data.length) { wrap.innerHTML = '<div class="state-msg">No events in selected time range</div>'; return; }
+
+  // Group by machine
+  const machines = {};
+  data.forEach(d => {
+    if (!machines[d.machineID]) machines[d.machineID] = { name: d.machineName, events: [] };
+    machines[d.machineID].events.push(d);
+  });
+
+  // Time bounds — based on filtered data only
+  const times = data.map(d => new Date(d.timestamp).getTime());
+  const tMin = Math.min(...times);
+  const tMax = Math.max(...times);
+  const tRange = tMax - tMin || 1;
+
+  // Axis labels
+  const axisCount = 6;
+  const axisTicks = Array.from({length: axisCount}, (_,i) => {
+    const t = new Date(tMin + (tRange * i / (axisCount-1)));
+    return fmtTsShort(t);
+  });
+
+  let html = '';
+
+  Object.entries(machines).forEach(([machineID, machine]) => {
+    // Sort chronologically; use notionOrder (inverted, since Notion returns newest first) as tiebreaker
+    const sorted = [...machine.events].sort((a,b) => {
+      const tDiff = new Date(a.timestamp) - new Date(b.timestamp);
+      if (tDiff !== 0) return tDiff;
+      return b.notionOrder - a.notionOrder; // higher notionOrder = older event
+    });
+
+    // Build segments: each event lasts until the next event on the SAME machine.
+    // The last segment stretches to tMax (right edge of the axis) to show current state.
+    const segments = [];
+    for (let i = 0; i < sorted.length; i++) {
+      const start  = new Date(sorted[i].timestamp).getTime();
+      const isLast = i === sorted.length - 1;
+      const end    = isLast ? tMax : new Date(sorted[i+1].timestamp).getTime();
+      const left   = ((start - tMin) / tRange) * 100;
+      const width  = Math.max(0.3, ((end - start) / tRange) * 100);
+      segments.push({ ...sorted[i], start, end, left, width, isLast });
+    }
+
+    const segsHtml = segments.map(s => {
+      const info = packmlInfo(s.status);
+      const dur = s.isLast ? 'ongoing' : fmtDuration(s.end - s.start);
+      return `<div class="tl-segment"
+        style="left:${s.left.toFixed(3)}%;width:${s.width.toFixed(3)}%;background:${info.color}"
+        data-tip="${esc(info.name)} (${s.status}) | ${fmtTs(s.start)} | ${dur}"
+        onmouseenter="showTip(event,this)"
+        onmouseleave="hideTip()">
+        <span>${s.width > 4 ? info.name : ''}</span>
+      </div>`;
+    }).join('');
+
+    html += `
+    <div class="timeline-machine">
+      <div class="tl-label">${esc(machine.name||machineID)} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${esc(machineID)}</span></div>
+      <div class="tl-track">${segsHtml}</div>
+      <div class="tl-axis">${axisTicks.map(t=>`<span>${t}</span>`).join('')}</div>
+    </div>`;
+  });
+
+  wrap.innerHTML = html;
+}
+
+function showTip(e, el) {
+  const tip = document.getElementById('tooltip');
+  tip.textContent = el.dataset.tip;
+  tip.style.opacity = '1';
+  moveTip(e);
+  el.addEventListener('mousemove', moveTip);
+}
+
+function moveTip(e) {
+  const tip = document.getElementById('tooltip');
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top  = (e.clientY - 32) + 'px';
+}
+
+function hideTip() {
+  document.getElementById('tooltip').style.opacity = '0';
+}
+
+// ── HISTORY TABLE ─────────────────────────────────────────────────────────
+function renderHistory(data) {
+  const tbody = document.getElementById('historyBody');
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="6" class="state-msg">No events in selected time range</td></tr>'; return; }
+  const sorted = [...data].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+  tbody.innerHTML = sorted.map((row, i) => {
+    const info = packmlInfo(row.status);
+    return `<tr>
+      <td style="color:var(--text-dim);font-family:var(--font-body);font-size:11px">${i+1}</td>
+      <td style="font-family:var(--font-body);font-size:12px;color:var(--teal-dark)">${fmtTs(row.timestamp)}</td>
+      <td style="font-weight:600;color:var(--black)">${esc(row.machineName||'—')}</td>
+      <td style="font-family:var(--font-body);font-size:12px">${esc(row.machineID||'—')}</td>
+      <td><span class="status-chip" style="color:${info.color};background:${info.bg};border-color:${info.color}">● ${info.name}</span></td>
+      <td style="font-family:var(--font-body);font-size:11px;color:var(--text-dim)">${row.status}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── DATA LOADING ──────────────────────────────────────────────────────────
+async function loadData() {
+  const token = document.getElementById('apiToken').value.trim();
+  const dbId  = document.getElementById('dbId').value.trim();
+  if (!token||!dbId) { showToast('Please enter API token and database ID', true); return; }
+
+  const btn = document.getElementById('loadBtn');
+  btn.disabled=true; btn.textContent='Loading...';
+  document.getElementById('liveStatus').textContent='Fetching...';
+
+  try {
+    const rows = await fetchAllPages(token, dbId);
+    allData = rows;
+    selectedMachines.clear();
+    document.getElementById('liveStatus').textContent = 'Live · '+rows.length+' events';
+    renderMachineFilter();
+    renderData();
+    showToast('Loaded '+rows.length+' events');
+    setupAutoRefresh(token, dbId);
+  } catch(e) {
+    document.getElementById('liveStatus').textContent='Error';
+    document.getElementById('machineCards').innerHTML=`<div class="state-msg error">Error: ${esc(e.message)}</div>`;
+    showToast(e.message, true);
+  }
+  btn.disabled=false; btn.textContent='Load Data';
+}
+
+async function fetchAllPages(token, dbId) {
+  let results=[], cursor;
+  do {
+    const body={page_size:100};
+    if (cursor) body.start_cursor=cursor;
+    const res = await fetch(`/notion/v1/databases/${dbId}/query`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-notion-token':token},
+      body:JSON.stringify(body)
+    });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.message||'API error '+res.status); }
+    const data = await res.json();
+    data.results.forEach((page, idx) => {
+      const p=page.properties;
+      results.push({
+        id:          page.id,
+        timestamp:   page.created_time,
+        notionOrder: results.length + idx, // preserves Notion's order (newest first)
+        machineName: getRichText(p.machineName)||getTitle(p.machineName),
+        machineID:   getRichText(p.machineID)||getTitle(p.machineID),
+        status:      getNumber(p.status),
+      });
+    });
+    cursor = data.has_more ? data.next_cursor : undefined;
+  } while(cursor);
+  return results;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function getRichText(p){ return p?.type==='rich_text'&&p.rich_text?.length?p.rich_text.map(t=>t.plain_text).join(''):''; }
+function getTitle(p)   { return p?.type==='title'&&p.title?.length?p.title.map(t=>t.plain_text).join(''):''; }
+function getNumber(p)  { return p?.type==='number'?(p.number??0):0; }
+function fmtTs(ts)     { if(!ts)return'—'; const d=new Date(ts); return d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString('en-GB',{hour12:false}); }
+function fmtTsShort(d) { return d.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}); }
+function fmtDuration(ms) {
+  if (ms < 1000) return ms+'ms';
+  if (ms < 60000) return Math.round(ms/1000)+'s';
+  if (ms < 3600000) return Math.round(ms/60000)+'min';
+  return (ms/3600000).toFixed(1)+'h';
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function setupAutoRefresh(token,dbId) {
+  if(refreshTimer) clearInterval(refreshTimer);
+  const secs=parseInt(document.getElementById('refreshInterval').value);
+  if(secs>0) refreshTimer=setInterval(()=>loadData(),secs*1000);
+}
+</script>
+</body>
+</html>
