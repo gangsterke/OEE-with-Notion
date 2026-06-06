@@ -71,7 +71,7 @@ Create a new full-page database in Notion with the following columns:
 5. Set **Authentication method** to `Access token`
 6. Copy the generated token — you will need it to run the dashboard and to configure the PLC
 
-<!-- Add a screenshot of the integration page here -->
+<img width="1047" height="321" alt="image" src="https://github.com/user-attachments/assets/59ab2c5b-61b9-4db4-9e38-3c16457fc2ec" />
 
 ### 3. Connect the integration to the database
 
@@ -79,10 +79,10 @@ Create a new full-page database in Notion with the following columns:
 2. Click **⋯** (top right) → **Connections**
 3. Search for your integration name and select it
 4. Also connect it on every **parent page** up to the workspace root, otherwise the API returns a 404
-
 > **Important:** Notion permissions do not automatically inherit downward. The integration must be connected at the database level **and** at each parent page level.
 
-<!-- Add a screenshot of the Connections menu here -->
+<img width="832" height="351" alt="image" src="https://github.com/user-attachments/assets/79f2eb32-12e3-4114-8b20-c3c2df71c1cc" />
+
 
 ### 4. Find the database ID
 
@@ -94,6 +94,13 @@ https://app.notion.com/p/My-Database-<page-id>?v=<view-id>
 
 - The **database ID** is `<page-id>` — the 32-character hex string before `?v=`
 - The **view ID** after `?v=` is not the database ID
+
+
+
+<img width="982" height="833" alt="image" src="https://github.com/user-attachments/assets/05a23106-3eca-4de9-94c5-9f99a61b823e" />
+
+
+
 
 ---
 
@@ -171,6 +178,13 @@ node server.js
 5. Click **Load Data**
 
 No `npm install` is needed — the proxy server uses only built-in Node.js modules.
+
+## Dashboard views
+
+<img width="1122" height="846" alt="image" src="https://github.com/user-attachments/assets/7f916b8d-1491-45a5-8510-72785461e9d6" />
+
+<img width="1120" height="802" alt="image" src="https://github.com/user-attachments/assets/af6ca22b-fa1b-4832-8fca-d2246e7fd4db" />
+
 
 ---
 
